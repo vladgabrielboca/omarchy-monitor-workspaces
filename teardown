@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Undo ./setup: drop the Hyprland hook (restoring Omarchy's workspace keys),
+# take both widgets off the bar, and put omarchy.workspaces back where it was.
+# The plugin files stay; run ./setup to turn it on again.
+set -euo pipefail
+
+ID=vladgabrielboca.monitor-workspaces
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}
+HYPR=$CONFIG/hypr/hyprland.lua
+SHELL_JSON=$CONFIG/omarchy/shell.json
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/$ID
+BEGIN="-- >>> $ID >>>"
+END="-- <<< $ID <<<"
+STAMP=$(date +%s)
+
+command -v jq >/dev/null || { echo "teardown: jq is required" >&2; exit 1; }
+
+if [[ -f $HYPR ]] && grep -qxF -- "$BEGIN" "$HYPR"; then
+  cp "$HYPR" "$HYPR.bak.$STAMP"
+  awk -v begin="$BEGIN" -v end="$END" '
+    $0 == begin { skip = 1; next }
+    $0 == end { skip = 0; next }
+    !skip
+  ' "$HYPR" >"$HYPR.tmp"
+  mv "$HYPR.tmp" "$HYPR"
+fi
+
+if [[ -f $SHELL_JSON ]]; then
+  saved=null
+  [[ -s $STATE_DIR/omarchy-workspaces.json ]] && saved=$(cat "$STATE_DIR/omarchy-workspaces.json")
+  cp "$SHELL_JSON" "$SHELL_JSON.bak.$STAMP"
+  jq --arg id "$ID" --argjson was "$saved" '
+    .bar.layout = (.bar.layout // {})
+    | .bar.layout |= with_entries(
+        if .value | type == "array" then .value |= map(select(.id != $id)) else . end)
+    | if ([.bar.layout[] | select(type == "array")[] | .id] | index("omarchy.workspaces")) != null then .
+      else
+        (if $was != null then $was.section else "left" end) as $section
+        | (.bar.layout[$section] // []) as $list
+        | (if $was != null then [$was.index, ($list | length)] | min
+           else (($list | map(.id) | index("omarchy.menu")) // -1) + 1 end) as $at
+        | .bar.layout[$section] = $list[:$at] + [($was.entry // {id: "omarchy.workspaces"})] + $list[$at:]
+      end
+  ' "$SHELL_JSON" >"$SHELL_JSON.tmp"
+  mv "$SHELL_JSON.tmp" "$SHELL_JSON"
+fi
+
+rm -rf "$STATE_DIR"
+
+if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null; then
+  hyprctl reload >/dev/null
+fi
+
+echo "Monitor Workspaces is off; Omarchy's workspace keys and widget are back."

@@ -1,0 +1,4 @@
+{
+  "badge.focused": "%1 has focus",
+  "badge.unfocused": "%1 (Super+Tab or click to focus)"
+}

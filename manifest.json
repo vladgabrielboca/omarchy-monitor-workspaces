@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "vladgabrielboca.monitor-workspaces",
+  "name": "Monitor Workspaces",
+  "version": "1.0.0",
+  "author": "Vlad Boca",
+  "license": "MIT",
+  "description": "Per-monitor workspaces for multi-monitor setups: each monitor gets its own 1-9, 0, Super+number acts on the focused monitor, and a bar badge shows which monitor has focus.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Monitor Workspaces",
+    "description": "Shows the workspaces this monitor owns as 1..9, 0, or a badge that lights up on the focused monitor.",
+    "category": "Compositor",
+    "aliases": ["workspaces", "monitor", "multi-monitor", "per-monitor"],
+    "allowMultiple": true,
+    "defaultSection": "left",
+    "defaults": { "display": "Workspaces" },
+    "schema": [
+      { "key": "display", "type": "enum", "label": "Display", "options": ["Workspaces", "Monitor badge"], "defaultValue": "Workspaces" }
+    ]
+  }
+}

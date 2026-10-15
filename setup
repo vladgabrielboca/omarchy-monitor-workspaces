@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Wire Monitor Workspaces into Hyprland and the Omarchy bar. Safe to run again.
+#
+#   - hooks hypr/monitor-workspaces.lua into ~/.config/hypr/hyprland.lua
+#   - puts the workspace numbers where omarchy.workspaces was (or after the
+#     Omarchy menu) and the monitor badge right of the clock
+#
+# Undo everything with ./teardown.
+set -euo pipefail
+
+ID=vladgabrielboca.monitor-workspaces
+PLUGIN_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}
+HYPR=$CONFIG/hypr/hyprland.lua
+SHELL_JSON=$CONFIG/omarchy/shell.json
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/$ID
+BEGIN="-- >>> $ID >>>"
+END="-- <<< $ID <<<"
+STAMP=$(date +%s)
+
+fail() { echo "setup: $*" >&2; exit 1; }
+
+command -v jq >/dev/null || fail "jq is required"
+[[ -f $HYPR ]] || fail "$HYPR not found (this plugin needs Omarchy's Lua Hyprland config)"
+[[ $PLUGIN_DIR != *'"'* && $PLUGIN_DIR != *'\'* ]] || fail "plugin path contains a quote or backslash: $PLUGIN_DIR"
+
+# Hyprland: replace any previous hook with a fresh one at the end of the file,
+# after Omarchy's defaults and your own bindings, so its rebinds win.
+cp "$HYPR" "$HYPR.bak.$STAMP"
+awk -v begin="$BEGIN" -v end="$END" '
+  $0 == begin { skip = 1; next }
+  $0 == end { skip = 0; next }
+  !skip
+' "$HYPR" >"$HYPR.tmp"
+cat >>"$HYPR.tmp" <<EOF
+$BEGIN
+-- Per-monitor workspaces. Managed by the $ID plugin; remove with its teardown.
+do
+  local path = "$PLUGIN_DIR/hypr/monitor-workspaces.lua"
+  local file = io.open(path)
+  if file then
+    file:close()
+    dofile(path)
+  end
+end
+$END
+EOF
+mv "$HYPR.tmp" "$HYPR"
+
+# Bar layout.
+if [[ ! -f $SHELL_JSON ]]; then
+  mkdir -p "$(dirname "$SHELL_JSON")"
+  cp "${OMARCHY_PATH:-/usr/share/omarchy}/config/omarchy/shell.json" "$SHELL_JSON"
+fi
+cp "$SHELL_JSON" "$SHELL_JSON.bak.$STAMP"
+mkdir -p "$STATE_DIR"
+
+# Remember where omarchy.workspaces sat, once, so teardown can put it back.
+if [[ ! -f $STATE_DIR/omarchy-workspaces.json ]]; then
+  jq '[.bar.layout // {} | to_entries[] | select(.value | type == "array")
+       | .key as $section | .value | to_entries[]
+       | select(.value.id == "omarchy.workspaces")
+       | {section: $section, index: .key, entry: .value}] | first // null' \
+    "$SHELL_JSON" >"$STATE_DIR/omarchy-workspaces.json"
+fi
+
+jq --arg id "$ID" --slurpfile saved "$STATE_DIR/omarchy-workspaces.json" '
+  ($saved[0]) as $was
+  | .bar.layout = (.bar.layout // {})
+  | .bar.layout |= with_entries(
+      if .value | type == "array"
+      then .value |= map(select(.id != $id and .id != "omarchy.workspaces"))
+      else . end)
+  | (if $was != null then $was.section else "left" end) as $section
+  | (.bar.layout[$section] // []) as $list
+  | (if $was != null then $was.index
+     else (($list | map(.id) | index("omarchy.menu")) // -1) + 1 end) as $at
+  | .bar.layout[$section] = $list[:$at] + [{id: $id}] + $list[$at:]
+  | .bar.layout.centerEnd = [{id: $id, display: "Monitor badge"}] + (.bar.layout.centerEnd // [])
+' "$SHELL_JSON" >"$SHELL_JSON.tmp"
+mv "$SHELL_JSON.tmp" "$SHELL_JSON"
+
+if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null; then
+  hyprctl reload >/dev/null
+  errors=$(hyprctl configerrors 2>/dev/null || true)
+  [[ -z ${errors//[[:space:]]/} ]] || echo "setup: Hyprland reported config errors:"$'\n'"$errors" >&2
+fi
+
+echo "Monitor Workspaces is set up."
+echo "  SUPER + 1..0        workspace on the focused monitor"
+echo "  SUPER + TAB         focus the next monitor"
+echo "  SUPER + SHIFT + TAB move the window to the next monitor"
+echo "Backups: $HYPR.bak.$STAMP, $SHELL_JSON.bak.$STAMP"

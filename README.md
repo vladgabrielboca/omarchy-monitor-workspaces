@@ -99,12 +99,12 @@ Turn it back on with `setup`:
 ## Update
 
 ```bash
-omarchy plugin update vladgabrielboca.monitor-workspaces --yes && omarchy restart shell
+omarchy plugin update vladgabrielboca.monitor-workspaces --yes && hyprctl reload && omarchy restart shell
 ```
 
 The keybindings update along with the plugin, since Hyprland loads them
-straight from the plugin directory. Restarting the shell makes sure the
-widget's logic file is reloaded.
+straight from the plugin directory; `hyprctl reload` applies them, and
+restarting the shell makes sure the widget's logic file is reloaded.
 
 ## Customising
 

@@ -8,7 +8,8 @@
 --   3rd monitor               -> workspaces 21-30, and so on
 --
 -- SUPER + TAB focuses the next monitor; SUPER + SHIFT + TAB moves the active
--- window there. Loaded from ~/.config/hypr/hyprland.lua by the plugin's
+-- window there, and SUPER + CTRL + SHIFT + 1..0 moves it straight to that slot
+-- on the next monitor. Loaded from ~/.config/hypr/hyprland.lua by the plugin's
 -- `setup` script; `teardown` removes that hook.
 
 local block = 10
@@ -83,6 +84,18 @@ local function workspace_for(slot)
   return tostring(first_workspace(hl.get_active_monitor()) + slot - 1)
 end
 
+-- Slot 1..10 on the monitor after the focused one, wrapping around; with a
+-- single monitor that is the focused monitor itself.
+local function next_monitor_workspace_for(slot)
+  local monitors = ordered_monitors()
+  local active = hl.get_active_monitor()
+  local index = 1
+  for i, monitor in ipairs(monitors) do
+    if active and monitor.name == active.name then index = i end
+  end
+  return tostring((index % math.max(#monitors, 1)) * block + slot)
+end
+
 for slot = 1, block do
   local key = "code:" .. tostring(slot + 9)
   local label = slot == 10 and "0" or tostring(slot)
@@ -98,6 +111,11 @@ for slot = 1, block do
   end)
   o.bind("SUPER + SHIFT + ALT + " .. key, "Move window silently to workspace " .. label .. " on this monitor", function()
     hl.dispatch(hl.dsp.window.move({ workspace = workspace_for(slot), follow = false }))
+  end)
+
+  hl.unbind("SUPER + CTRL + SHIFT + " .. key)
+  o.bind("SUPER + CTRL + SHIFT + " .. key, "Move window to workspace " .. label .. " on the next monitor", function()
+    hl.dispatch(hl.dsp.window.move({ workspace = next_monitor_workspace_for(slot) }))
   end)
 end
 

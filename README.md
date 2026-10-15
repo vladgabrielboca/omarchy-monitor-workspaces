@@ -22,6 +22,9 @@ self-contained:
   monitor's 2.
 - **`Super + Tab` jumps between monitors**, so you never need the mouse to
   change which monitor you're on.
+- **Send a window to any workspace on the other monitor** in one chord:
+  `Super + Ctrl + Shift + 3` puts it on the other monitor's 3. With three or
+  more monitors, "other" is the next one to the right, wrapping around.
 - **A focus badge** — a monitor icon next to the clock — lights up on the
   focused monitor's bar and dims on the others.
 - **Slots 1–5 are always shown; 6–0 appear only while they exist**, so you can
@@ -38,6 +41,7 @@ self-contained:
 | `Super + 1…9, 0` | Switch to that workspace on the focused monitor |
 | `Super + Shift + 1…9, 0` | Move the window to that workspace on the focused monitor |
 | `Super + Shift + Alt + 1…9, 0` | Move the window there without following it |
+| `Super + Ctrl + Shift + 1…9, 0` | Move the window to that workspace on the **other** monitor, and follow it |
 | `Super + Tab` | Focus the next monitor |
 | `Super + Shift + Tab` | Move the window to the next monitor |
 

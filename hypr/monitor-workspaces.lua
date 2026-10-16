@@ -38,24 +38,45 @@ local function in_block(id, first)
   return id >= first and id < first + block
 end
 
--- Pin each block to its monitor, and move a monitor still showing an empty
--- workspace from someone else's block (as at login) onto its own first one.
+-- A monitor that has just connected sits at 0,0 until Hyprland places it, on
+-- top of whichever monitor is really there. Ranking monitors in that moment
+-- hands the newcomer someone else's block, so wait for the layout to settle.
+local function overlapping(monitors)
+  for i = 1, #monitors do
+    for j = i + 1, #monitors do
+      local a, b = monitors[i], monitors[j]
+      local aw, ah = a.width / a.scale, a.height / a.scale
+      local bw, bh = b.width / b.scale, b.height / b.scale
+      if a.x < b.x + bw and b.x < a.x + aw and a.y < b.y + bh and b.y < a.y + ah then return true end
+    end
+  end
+  return false
+end
+
+-- Pin each block to its monitor, so a workspace created for it opens there,
+-- and move a monitor still showing an empty workspace from someone else's block
+-- (as at login) onto its own first one.
+--
+-- The rules are deliberately neither `default` nor `persistent`: with those, a
+-- monitor that connects claims its block's first workspace even while another
+-- monitor is showing it, which leaves that monitor pointing at a workspace
+-- Hyprland no longer draws there; its windows then vanish until you switch away.
 local rules = {}
 local function apply_rules()
+  local monitors = ordered_monitors()
+  if overlapping(monitors) then return end
+
   for _, rule in ipairs(rules) do
     if rule and rule.set_enabled then rule:set_enabled(false) end
   end
   rules = {}
 
-  local monitors = ordered_monitors()
   for index, monitor in ipairs(monitors) do
     local first = (index - 1) * block + 1
     for offset = 0, block - 1 do
       rules[#rules + 1] = hl.workspace_rule({
         workspace = tostring(first + offset),
         monitor = monitor.name,
-        default = offset == 0,
-        persistent = offset == 0,
       })
     end
   end

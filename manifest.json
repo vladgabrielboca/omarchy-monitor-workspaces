@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "vladgabrielboca.monitor-workspaces",
   "name": "Monitor Workspaces",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "author": "Vlad Boca",
   "license": "MIT",
   "description": "Per-monitor workspaces for multi-monitor setups: each monitor gets its own 1-9, 0, Super+number acts on the focused monitor, and a bar badge shows which monitor has focus.",

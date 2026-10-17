@@ -53,9 +53,22 @@ local function overlapping(monitors)
   return false
 end
 
--- Pin each block to its monitor, so a workspace created for it opens there,
--- and move a monitor still showing an empty workspace from someone else's block
--- (as at login) onto its own first one.
+-- What the last few runs saw, for diagnosing login and hotplug behaviour.
+-- Lives in the runtime directory, so it starts empty after every boot.
+local log_path = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/monitor-workspaces.log"
+local function log(message)
+  local file = io.open(log_path, "a")
+  if not file then return end
+  local parts = {}
+  for _, monitor in ipairs(hl.get_monitors()) do
+    local workspace = monitor.active_workspace
+    parts[#parts + 1] = string.format("%s@%d,%d:%s", monitor.name, monitor.x, monitor.y, workspace and workspace.id or "-")
+  end
+  file:write(os.date("%H:%M:%S "), message, " [", table.concat(parts, " "), "]\n")
+  file:close()
+end
+
+-- Pin each block to its monitor, so a workspace created for it opens there.
 --
 -- The rules are deliberately neither `default` nor `persistent`: with those, a
 -- monitor that connects claims its block's first workspace even while another
@@ -64,7 +77,10 @@ end
 local rules = {}
 local function apply_rules()
   local monitors = ordered_monitors()
-  if overlapping(monitors) then return end
+  if overlapping(monitors) then
+    log("rules: skipped, monitors overlap")
+    return
+  end
 
   for _, rule in ipairs(rules) do
     if rule and rule.set_enabled then rule:set_enabled(false) end
@@ -80,25 +96,91 @@ local function apply_rules()
       })
     end
   end
+  log("rules: applied")
+end
+
+local function visible_elsewhere(id, monitor)
+  local workspace = hl.get_workspace(tostring(id))
+  return workspace ~= nil and workspace.visible and workspace.monitor ~= nil
+    and workspace.monitor.name ~= monitor.name
+end
+
+-- Put every monitor on a workspace of its own block. A monitor showing an empty
+-- workspace from another block (Hyprland hands out 1, 2, ... before these rules
+-- exist) moves to its block's first workspace. Right after login, a monitor on
+-- an empty workspace of its own block moves to that block's first one too, so
+-- each screen starts on its 1. A target another monitor is showing is skipped
+-- this round: a monitor that must leave goes to a free workspace of its block
+-- instead, and the next round finishes once the first one is free.
+local function settle(at_login)
+  local monitors = ordered_monitors()
+  if overlapping(monitors) then
+    log("settle: skipped, monitors overlap")
+    return false
+  end
 
   local focused = hl.get_active_monitor()
-  local moved = false
+  local moved, blocked = false, false
   for index, monitor in ipairs(monitors) do
     local first = (index - 1) * block + 1
     local workspace = monitor.active_workspace
-    if workspace and not in_block(workspace.id, first) and workspace.windows == 0 then
-      hl.dispatch(hl.dsp.focus({ monitor = monitor.name }))
-      hl.dispatch(hl.dsp.focus({ workspace = tostring(first) }))
-      moved = true
+    local empty = workspace ~= nil and workspace.windows == 0
+    local homeless = workspace ~= nil and not in_block(workspace.id, first)
+    if empty and workspace.id ~= first and (homeless or at_login) then
+      local target = first
+      if visible_elsewhere(first, monitor) then
+        blocked = true
+        target = nil
+        if homeless then
+          for id = first + 1, first + block - 1 do
+            if hl.get_workspace(tostring(id)) == nil then target = id break end
+          end
+        end
+      end
+      if target then
+        hl.dispatch(hl.dsp.focus({ monitor = monitor.name }))
+        hl.dispatch(hl.dsp.focus({ workspace = tostring(target) }))
+        moved = true
+      end
     end
   end
   if moved and focused then hl.dispatch(hl.dsp.focus({ monitor = focused.name })) end
+  log(string.format("settle%s: moved=%s blocked=%s", at_login and " (login)" or "", tostring(moved), tostring(blocked)))
+  return blocked
+end
+
+-- Monitor events arrive in bursts while outputs connect and get placed, so
+-- settle once things have been quiet for a moment, and retry while a move is
+-- blocked by another monitor that still has to move.
+local settle_timer = nil
+local login_pending = false
+local function schedule_settle(delay, retries)
+  if settle_timer and settle_timer.set_enabled then settle_timer:set_enabled(false) end
+  settle_timer = hl.timer(function()
+    settle_timer = nil
+    if settle(login_pending) and retries > 0 then
+      schedule_settle(200, retries - 1)
+    else
+      login_pending = false
+    end
+  end, { type = "oneshot", timeout = delay })
+end
+
+local function on_monitors_changed()
+  apply_rules()
+  schedule_settle(400, 5)
 end
 
 apply_rules()
-hl.on("monitor.added", apply_rules)
-hl.on("monitor.removed", apply_rules)
-hl.on("monitor.layout_changed", apply_rules)
+schedule_settle(400, 5)
+hl.on("hyprland.start", function()
+  login_pending = true
+  log("hyprland.start")
+  on_monitors_changed()
+end)
+hl.on("monitor.added", on_monitors_changed)
+hl.on("monitor.removed", on_monitors_changed)
+hl.on("monitor.layout_changed", on_monitors_changed)
 
 -- The focused monitor's real workspace for slot 1..10.
 local function workspace_for(slot)

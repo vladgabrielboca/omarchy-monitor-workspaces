@@ -114,6 +114,16 @@ restarting the shell makes sure the widget's logic file is reloaded.
 - **Block size:** `block` in `hypr/monitor-workspaces.lua` and `BLOCK` in
   `Model.js` must match (default 10, one per number key).
 
+## Troubleshooting
+
+Each time monitors change (including at login), the plugin notes what it saw
+and did in `$XDG_RUNTIME_DIR/monitor-workspaces.log`, which starts empty after
+every boot. Include it when reporting a problem:
+
+```bash
+cat "$XDG_RUNTIME_DIR/monitor-workspaces.log"
+```
+
 ## Requirements
 
 - Omarchy with shell plugin support and the Lua Hyprland config

@@ -58,7 +58,8 @@ monitor.
 omarchy plugin add https://github.com/vladgabrielboca/omarchy-monitor-workspaces.git --yes && ~/.config/omarchy/plugins/vladgabrielboca.monitor-workspaces/setup
 ```
 
-`omarchy plugin add` fetches the plugin. `setup` then:
+`omarchy plugin add` fetches the plugin. `setup` then lists the changes below
+and asks before making them (pass `--yes` to skip the question):
 
 1. adds a small, clearly marked hook to the end of `~/.config/hypr/hyprland.lua`
    that loads the plugin's [`hypr/monitor-workspaces.lua`](hypr/monitor-workspaces.lua)
@@ -71,6 +72,9 @@ safe to run again.
 
 Windows already open on workspaces that now belong to another monitor stay
 where they are; move them with `Super + Shift + number`.
+
+> `omarchy plugin add --enable` on its own only places the bar widget. The
+> keybindings need `setup`, so use the command above.
 
 ## Disable
 
@@ -113,6 +117,22 @@ restarting the shell makes sure the widget's logic file is reloaded.
   one with `"display": "Monitor badge"` in `~/.config/omarchy/shell.json`.
 - **Block size:** `block` in `hypr/monitor-workspaces.lua` and `BLOCK` in
   `Model.js` must match (default 10, one per number key).
+
+## Known limitations
+
+- **Workspace numbers in your own window rules** (for example
+  `o.window("qemu", { workspace = "5" })`) refer to real workspaces, so `5` is
+  the leftmost monitor's 5. Use the real number for another monitor: `15` for
+  the second monitor's 5.
+- **Unplugging a monitor** moves its windows to the remaining monitors with
+  their real workspace numbers. They show on the bar in parentheses, such as
+  `(2)`; click one to open it. `Super + number` doesn't reach them, but
+  plugging the monitor back in returns them to it.
+- **With three or more monitors**, `Super + Tab` and `Super + Ctrl + Shift +
+  number` go to the next monitor to the right, wrapping around.
+- **After `teardown`**, windows on workspaces 11 and up are off Omarchy's bar
+  and number keys, which cover 1-10; reach them with `Super + Tab` (next
+  workspace) or move them to 1-10 first.
 
 ## Troubleshooting
 

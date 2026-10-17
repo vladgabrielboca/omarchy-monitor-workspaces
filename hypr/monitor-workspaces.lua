@@ -59,6 +59,12 @@ local log_path = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/monitor-workspace
 local function log(message)
   local file = io.open(log_path, "a")
   if not file then return end
+  -- Keep it small on machines that are rarely rebooted.
+  if file:seek("end") > 65536 then
+    file:close()
+    file = io.open(log_path, "w")
+    if not file then return end
+  end
   local parts = {}
   for _, monitor in ipairs(hl.get_monitors()) do
     local workspace = monitor.active_workspace

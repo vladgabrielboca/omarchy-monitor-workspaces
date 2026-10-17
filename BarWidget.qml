@@ -43,9 +43,13 @@ BarWidget {
 
   readonly property var ids: {
     var existing = []
+    var guests = []
     var values = Hyprland.workspaces.values
-    for (var i = 0; i < values.length; i++) existing.push(values[i].id)
-    return Model.visibleIds(root.first, existing)
+    for (var i = 0; i < values.length; i++) {
+      existing.push(values[i].id)
+      if (root.monitor && values[i].monitor === root.monitor) guests.push(values[i].id)
+    }
+    return Model.visibleIds(root.first, existing, guests)
   }
 
   function workspaceById(id) {

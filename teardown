@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Undo ./setup: drop the Hyprland hook (restoring Omarchy's workspace keys),
 # take both widgets off the bar, and put omarchy.workspaces back where it was.
-# The plugin files stay; run ./setup to turn it on again.
+# The plugin files stay; run ./setup to turn it on again. Pass --yes to skip
+# the confirmation.
 set -euo pipefail
 
 ID=vladgabrielboca.monitor-workspaces
@@ -13,7 +14,25 @@ BEGIN="-- >>> $ID >>>"
 END="-- <<< $ID <<<"
 STAMP=$(date +%s)
 
-command -v jq >/dev/null || { echo "teardown: jq is required" >&2; exit 1; }
+fail() { echo "teardown: $*" >&2; exit 1; }
+
+# Both files belong to the user, so ask before touching them. --yes skips the
+# question for scripts; without a terminal to ask on, refuse rather than guess.
+confirm() {
+  [[ ${1:-} == --yes ]] && return 0
+  [[ -t 0 ]] || fail "run in a terminal to confirm, or pass --yes"
+  read -r -p "Proceed? [Y/n] " answer
+  [[ -z $answer || $answer =~ ^[Yy] ]] || { echo "Nothing changed."; exit 1; }
+}
+
+command -v jq >/dev/null || fail "jq is required"
+
+echo "Monitor Workspaces will be switched off (backups are made first):"
+echo "  $HYPR"
+echo "    remove the plugin's block, restoring Omarchy's workspace keys"
+echo "  $SHELL_JSON"
+echo "    remove the plugin's widgets and put omarchy.workspaces back"
+confirm "${1:-}"
 
 if [[ -f $HYPR ]] && grep -qxF -- "$BEGIN" "$HYPR"; then
   cp "$HYPR" "$HYPR.bak.$STAMP"

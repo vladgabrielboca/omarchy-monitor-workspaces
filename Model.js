@@ -23,8 +23,10 @@ function firstWorkspace(monitors, name) {
 }
 
 // Ids to draw: the first ALWAYS_SHOWN slots of the block, plus any other
-// existing workspace in `existingIds` that falls inside it.
-function visibleIds(first, existingIds) {
+// existing workspace in `existingIds` that falls inside it, then any workspace
+// in `guestIds` (on this monitor but from another block, as after unplugging
+// the monitor it belonged to).
+function visibleIds(first, existingIds, guestIds) {
   var ids = []
   for (var slot = 0; slot < ALWAYS_SHOWN; slot++) ids.push(first + slot)
   for (var i = 0; i < existingIds.length; i++) {
@@ -32,14 +34,24 @@ function visibleIds(first, existingIds) {
     if (id >= first && id < first + BLOCK && ids.indexOf(id) === -1) ids.push(id)
   }
   ids.sort(function(a, b) { return a - b })
-  return ids
+
+  var guests = []
+  var others = guestIds || []
+  for (var j = 0; j < others.length; j++) {
+    var guest = others[j]
+    if (guest > 0 && (guest < first || guest >= first + BLOCK) && guests.indexOf(guest) === -1) guests.push(guest)
+  }
+  guests.sort(function(a, b) { return a - b })
+  return ids.concat(guests)
 }
 
 // The label for a real id within the block starting at `first`: 1..9, then 0.
+// A workspace from another block shows its slot there in parentheses.
 function slotLabel(first, id) {
   var slot = id - first + 1
-  if (slot < 1 || slot > BLOCK) return String(id)
-  return slot === 10 ? "0" : String(slot)
+  if (slot >= 1 && slot <= BLOCK) return slot === 10 ? "0" : String(slot)
+  var home = ((id - 1) % BLOCK) + 1
+  return "(" + (home === 10 ? "0" : String(home)) + ")"
 }
 
 // Strip markup-shaped characters before text reaches a shared tooltip sink.

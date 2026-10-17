@@ -23,8 +23,12 @@ JSON
 cp "$XDG_CONFIG_HOME/hypr/hyprland.lua" "$sandbox/hypr.orig"
 jq -S . "$XDG_CONFIG_HOME/omarchy/shell.json" >"$sandbox/shell.orig"
 
-"$ROOT/setup" >/dev/null
-"$ROOT/setup" >/dev/null
+# Without a terminal to confirm on, or --yes, nothing may change.
+if "$ROOT/setup" </dev/null >/dev/null 2>&1; then fail "setup ran without consent"; fi
+cmp -s "$XDG_CONFIG_HOME/hypr/hyprland.lua" "$sandbox/hypr.orig" || fail "setup changed files without consent"
+
+"$ROOT/setup" --yes >/dev/null
+"$ROOT/setup" --yes >/dev/null
 hypr=$XDG_CONFIG_HOME/hypr/hyprland.lua
 layout=$(jq -c .bar.layout "$XDG_CONFIG_HOME/omarchy/shell.json")
 
@@ -35,7 +39,8 @@ grep -qF "\"$ROOT/hypr/monitor-workspaces.lua\"" "$hypr" || fail "hook does not 
 [[ $(jq -r '.centerEnd | map(.id + ":" + (.display // "")) | join(",")' <<<"$layout") == "$ID:Monitor badge,omarchy.weather:" ]] ||
   fail "badge not first in centerEnd: $layout"
 
-"$ROOT/teardown" >/dev/null
+if "$ROOT/teardown" </dev/null >/dev/null 2>&1; then fail "teardown ran without consent"; fi
+"$ROOT/teardown" --yes >/dev/null
 cmp -s "$hypr" "$sandbox/hypr.orig" || fail "teardown left the Hyprland config changed"
 jq -S . "$XDG_CONFIG_HOME/omarchy/shell.json" | cmp -s - "$sandbox/shell.orig" || fail "teardown left the bar layout changed"
 [[ ! -e $XDG_STATE_HOME/$ID ]] || fail "teardown left state behind"

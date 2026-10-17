@@ -112,6 +112,7 @@ end
 -- each screen starts on its 1. A target another monitor is showing is skipped
 -- this round: a monitor that must leave goes to a free workspace of its block
 -- instead, and the next round finishes once the first one is free.
+local login_monitor = nil
 local function settle(at_login)
   local monitors = ordered_monitors()
   if overlapping(monitors) then
@@ -144,8 +145,12 @@ local function settle(at_login)
       end
     end
   end
-  if moved and focused then hl.dispatch(hl.dsp.focus({ monitor = focused.name })) end
-  log(string.format("settle%s: moved=%s blocked=%s", at_login and " (login)" or "", tostring(moved), tostring(blocked)))
+  -- After login, end on the monitor Hyprland started on rather than on one
+  -- that connected later and grabbed focus.
+  local home = focused and focused.name
+  if at_login and login_monitor then home = login_monitor end
+  if home and (moved or at_login) then hl.dispatch(hl.dsp.focus({ monitor = home })) end
+  log(string.format("settle%s: moved=%s blocked=%s focus=%s", at_login and " (login)" or "", tostring(moved), tostring(blocked), tostring(home)))
   return blocked
 end
 
@@ -175,6 +180,12 @@ apply_rules()
 schedule_settle(400, 5)
 hl.on("hyprland.start", function()
   login_pending = true
+  -- The primary monitor: cursor.default_monitor when it is set, otherwise the
+  -- one Hyprland started on (outputs that connect later take focus as they
+  -- appear, which is how the secondary monitor ended up focused at login).
+  local preferred = hl.get_config("cursor.default_monitor")
+  local active = hl.get_active_monitor()
+  login_monitor = (type(preferred) == "string" and preferred ~= "") and preferred or (active and active.name)
   log("hyprland.start")
   on_monitors_changed()
 end)

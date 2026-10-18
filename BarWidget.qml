@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
@@ -10,8 +11,10 @@ import "Model.js" as Model
 // One widget, two looks, chosen by the `display` setting:
 //   Workspaces    - the workspaces this bar's monitor owns, numbered 1..N
 //   Monitor badge - a monitor glyph lit on the focused monitor's bar
-// Monitors ordered left to right each own a block of ten real workspaces, the
-// same ordering hypr/monitor-workspaces.lua uses for SUPER + 1..0.
+// Each monitor owns a block of ten real workspaces. With Omarchy's built-in
+// per-monitor workspaces, the blocks are the ones Omarchy assigns and keeps in
+// ~/.local/state/omarchy/monitor-workspaces; without it, monitors ordered left
+// to right own them, as hypr/monitor-workspaces.lua does.
 BarWidget {
   id: root
   moduleName: "vladgabrielboca.monitor-workspaces"
@@ -26,7 +29,29 @@ BarWidget {
   readonly property bool monitorFocused: monitor !== null && Hyprland.focusedMonitor === monitor
   readonly property int activeId: monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
 
+  // Omarchy's engine is present when its module is installed; its blocks come
+  // from the state file it writes, by connector name.
+  property bool builtin: false
+  property var blocks: ({})
+
+  FileView {
+    path: (Quickshell.env("OMARCHY_PATH") || "/usr/share/omarchy") + "/default/hypr/monitor-workspaces.lua"
+    printErrors: false
+    onLoaded: root.builtin = true
+    onLoadFailed: root.builtin = false
+  }
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.local/state/omarchy/monitor-workspaces"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.blocks = Model.parseBlocks(text())
+    onLoadFailed: root.blocks = ({})
+  }
+
   readonly property int first: {
+    if (root.builtin) return Model.builtinFirst(root.blocks, root.monitorName, root.activeId)
     var monitors = []
     var values = Hyprland.monitors.values
     for (var i = 0; i < values.length; i++) {
@@ -61,7 +86,14 @@ BarWidget {
   }
 
   function focusWorkspace(id) {
-    if (root.bar) root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
+    if (!root.bar) return
+    var slot = id - root.first + 1
+    // Omarchy's own focus action also pulls a workspace of this monitor's block
+    // back from wherever it wandered.
+    var expression = root.builtin && slot >= 1 && slot <= Model.BLOCK
+      ? "o.workspaces.focus(" + slot + ", \"" + Model.plain(root.monitorName) + "\")"
+      : "hl.dsp.focus({ workspace = \"" + id + "\" })"
+    root.bar.run("hyprctl dispatch " + Util.shellQuote(expression))
   }
 
   function focusMonitor() {
@@ -72,6 +104,9 @@ BarWidget {
 
   // Monitor positions come from Hyprland's monitor list, which Quickshell
   // only refreshes on request; a layout change or hotplug asks for it again.
+  // Quickshell also misses which monitor a moved workspace landed on and a
+  // workspace that changed number (Omarchy's engine renumbers on unplug), so
+  // those ask Hyprland too.
   Component.onCompleted: Hyprland.refreshMonitors()
 
   Connections {
@@ -80,6 +115,9 @@ BarWidget {
       var name = event ? String(event.name) : ""
       if (name === "configreloaded" || name === "monitoraddedv2" || name === "monitorremovedv2") {
         Hyprland.refreshMonitors()
+      } else if (name === "moveworkspacev2" || name === "changeworkspaceid") {
+        Hyprland.refreshMonitors()
+        Hyprland.refreshWorkspaces()
       }
     }
   }

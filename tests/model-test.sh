@@ -7,7 +7,7 @@ command -v node >/dev/null || { echo "SKIP: node not installed"; exit 0; }
 node - "$ROOT/Model.js" <<'JS'
 const fs = require("fs")
 const src = fs.readFileSync(process.argv[2], "utf8").replace(".pragma library", "")
-const M = new Function(src + "; return { firstWorkspace, visibleIds, slotLabel, plain }")()
+const M = new Function(src + "; return { firstWorkspace, visibleIds, slotLabel, plain, parseBlocks, builtinFirst }")()
 const assert = require("assert")
 const monitors = [
   { name: "DP-1", x: 1920, y: -140 },
@@ -28,5 +28,13 @@ assert.strictEqual(M.slotLabel(11, 12), "2")
 assert.strictEqual(M.slotLabel(11, 20), "0")
 assert.strictEqual(M.slotLabel(11, 3), "(3)")
 assert.strictEqual(M.plain('<img src="https://example.invalid/x">DP-1'), "img src=https://example.invalid/xDP-1")
+// Omarchy's block file, as its engine writes it.
+const blocks = M.parseBlocks("0\tDP-1\tGIGA-BYTE M27Q3 0x01\n1\tDP-2\tASUS VG248 J9L\nbad line\nx\tHDMI-A-1\tY\n")
+assert.deepStrictEqual(blocks, { "DP-1": 0, "DP-2": 1 })
+assert.strictEqual(M.builtinFirst(blocks, "DP-2", 1), 11)
+assert.strictEqual(M.builtinFirst(blocks, "DP-1", 3), 1)
+// Before the file exists, the shown workspace decides.
+assert.strictEqual(M.builtinFirst({}, "DP-1", 13), 11)
+assert.strictEqual(M.builtinFirst({}, "DP-1", -1), 1)
 console.log("ok")
 JS

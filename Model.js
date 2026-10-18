@@ -1,8 +1,9 @@
 .pragma library
 
 // Pure helpers, kept out of the QML so tests/model-test.sh can run them.
-// Mirrors hypr/monitor-workspaces.lua: monitors ordered left to
-// right (then top to bottom) each own a block of BLOCK real workspaces.
+// Mirrors hypr/monitor-workspaces.lua. Without Omarchy's engine, monitors
+// ordered left to right (then top to bottom) each own a block of BLOCK real
+// workspaces; with it, Omarchy's block file decides (see parseBlocks).
 
 var BLOCK = 10
 var ALWAYS_SHOWN = 5
@@ -20,6 +21,27 @@ function firstWorkspace(monitors, name) {
     if (real[j].name === name) return j * BLOCK + 1
   }
   return 1
+}
+
+// Omarchy's block file: one "block<TAB>connector<TAB>identity" line per
+// monitor it has seen. Returns { connector: block }; malformed lines are skipped.
+function parseBlocks(text) {
+  var blocks = {}
+  var lines = String(text || "").split("\n")
+  for (var i = 0; i < lines.length && i < 256; i++) {
+    var fields = lines[i].split("\t")
+    if (fields.length < 3 || fields[1] === "" || !/^[0-9]{1,3}$/.test(fields[0])) continue
+    blocks[fields[1]] = parseInt(fields[0], 10)
+  }
+  return blocks
+}
+
+// The first real workspace of `name`'s block under Omarchy's engine. Until it
+// has written the file, the workspace the monitor shows is taken to be its own.
+function builtinFirst(blocks, name, activeId) {
+  var block = blocks ? blocks[name] : undefined
+  if (block === undefined) block = activeId > 0 ? Math.floor((activeId - 1) / BLOCK) : 0
+  return block * BLOCK + 1
 }
 
 // Ids to draw: the first ALWAYS_SHOWN slots of the block, plus any other

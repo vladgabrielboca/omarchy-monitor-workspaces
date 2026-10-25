@@ -11,7 +11,7 @@
   "highlight.border": "Border",
   "highlight.border.tip": "The focused window's border colour",
   "highlight.plain": "Plain",
-  "highlight.plain.tip": "No colour: the unfocused bar is dimmed instead",
+  "highlight.plain.tip": "The colour the theme gives every bar icon",
   "highlight.custom": "Custom",
   "highlight.custom.tip": "Your own colour from the picker or hex field"
 }

@@ -33,7 +33,7 @@ Panel {
     { mode: "accent", label: strings.t("highlight.accent", "Accent"), tip: strings.t("highlight.accent.tip", "The theme's accent colour") },
     { mode: "alert", label: strings.t("highlight.alert", "Alert"), tip: strings.t("highlight.alert.tip", "The colour the bar uses for alerts (recording, updates)") },
     { mode: "border", label: strings.t("highlight.border", "Border"), tip: strings.t("highlight.border.tip", "The focused window's border colour") },
-    { mode: "plain", label: strings.t("highlight.plain", "Plain"), tip: strings.t("highlight.plain.tip", "No colour: the unfocused bar is dimmed instead") },
+    { mode: "plain", label: strings.t("highlight.plain", "Plain"), tip: strings.t("highlight.plain.tip", "The colour the theme gives every bar icon") },
     { mode: "custom", label: strings.t("highlight.custom", "Custom"), tip: strings.t("highlight.custom.tip", "Your own colour from the picker or hex field") }
   ]
 

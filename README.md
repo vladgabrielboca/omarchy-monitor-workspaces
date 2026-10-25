@@ -73,11 +73,14 @@ highlight colour menu (see below). After login, focus returns to your primary mo
 The badge and the focused monitor's current workspace are lit with one colour,
 chosen **per theme**: click the badge to open the menu.
 
+![The highlight colour menu under the monitor badge, on the Ethereal theme: a colour square, hue strip and hex field above the Accent, Alert, Border, Plain and Custom buttons, with Plain selected](screenshots/highlight-menu.png)
+
 - **Accent** (the default): the theme's accent colour.
 - **Alert**: the colour the bar uses for alerts (recording, updates). This
   was the only colour before 2.1.0.
 - **Border**: the focused window's border colour.
-- **Plain**: no colour; the unfocused monitor's bar is dimmed instead.
+- **Plain**: the colour the theme gives every bar icon, so the badge blends
+  in; the unfocused monitor's badge is still dimmed.
 - **Custom**: drag in the picker or type a hex colour.
 
 Each theme remembers its own choice, so a colour picked for one theme never

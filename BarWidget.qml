@@ -10,7 +10,8 @@ import "Model.js" as Model
 
 // One widget, two looks, chosen by the `display` setting:
 //   Workspaces    - the workspaces this bar's monitor owns, numbered 1..N
-//   Monitor badge - a monitor glyph lit on the focused monitor's bar
+//   Monitor badge - a monitor glyph lit on the focused monitor's bar; clicking
+//                   it opens the highlight colour menu (HighlightPanel.qml)
 // Each monitor owns a block of ten real workspaces. With Omarchy's built-in
 // per-monitor workspaces, the blocks are the ones Omarchy assigns and keeps in
 // ~/.local/state/omarchy/monitor-workspaces; without it, monitors ordered left
@@ -96,10 +97,88 @@ BarWidget {
     root.bar.run("hyprctl dispatch " + Util.shellQuote(expression))
   }
 
-  function focusMonitor() {
-    if (root.bar && root.monitorName) {
-      root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ monitor = \"" + Model.plain(root.monitorName) + "\" })"))
+  // ---- Highlight colour: what lights the badge and the current workspace.
+  // Every widget instance, on every bar, reads the same per-theme file, so a
+  // change made in one bar's menu shows on all of them.
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state"
+  property string themeName: "default"
+  property var highlights: ({})
+  readonly property var highlightChoice: Model.highlightFor(root.highlights, root.themeName)
+
+  function presetColor(mode) {
+    if (mode === "alert") return root.bar ? root.bar.urgent : Commons.Color.bar.active
+    if (mode === "plain") return root.bar ? root.bar.barForeground : Commons.Color.foreground
+    if (mode === "border") {
+      // The focused window's border; a gradient gives its first stop.
+      var c = Commons.Color.composed("hyprland.active-border", "hyprland.active-border-alpha", Commons.Color.accent, 1.0)
+      return Qt.rgba(c.r, c.g, c.b, 1)
     }
+    return Commons.Color.accent
+  }
+
+  readonly property color highlightColor: root.highlightChoice.mode === "custom"
+    ? root.highlightChoice.hex
+    : root.presetColor(root.highlightChoice.mode)
+
+  // `mode` null forgets this theme's choice. Writes while dragging the picker
+  // go out at most every 80 ms, so the other bars follow along live.
+  function setHighlight(mode, hex) {
+    root.highlights = Model.withHighlight(root.highlights, root.themeName, mode, hex)
+    if (!saveTimer.running) saveTimer.start()
+  }
+
+  Timer {
+    id: saveTimer
+    interval: 80
+    onTriggered: highlightFile.setText(JSON.stringify(root.highlights, null, 2) + "\n")
+  }
+
+  FileView {
+    path: root.stateHome + "/omarchy/current/theme.name"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.themeName = text().replace(/^\s+|\s+$/g, "") || "default"
+    onLoadFailed: root.themeName = "default"
+  }
+
+  FileView {
+    id: highlightFile
+    path: root.stateHome + "/vladgabrielboca.monitor-workspaces/highlight.json"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onFileChanged: reload()
+    // A write of ours still waiting to go out is newer than what's on disk.
+    onLoaded: if (!saveTimer.running) root.highlights = Model.parseHighlights(text())
+    onLoadFailed: if (!saveTimer.running) root.highlights = ({})
+  }
+
+  // ---- The menu. Shape contract for the bar's popout routing: open, close
+  // and opened on the bar-widget root, which stands in for the panel.
+  readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+  readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
+  function open() { if (panelLoader.item) panelLoader.item.open() }
+  function close() { if (panelLoader.item) panelLoader.item.close() }
+  function togglePanel() { if (panelLoader.item) panelLoader.item.toggle() }
+  function closeForPopoutSwitch() { if (panelLoader.item) panelLoader.item.closeForPopoutSwitch() }
+
+  function injectPanel() {
+    var target = panelLoader.item
+    if (!target) return
+    target.bar = root.bar
+    target.anchorItem = badge
+    target.hostWidget = root
+  }
+
+  onBarChanged: injectPanel()
+
+  Loader {
+    id: panelLoader
+    active: root.badgeMode
+    source: Qt.resolvedUrl("HighlightPanel.qml")
+    visible: false
+    onLoaded: root.injectPanel()
   }
 
   // Monitor positions come from Hyprland's monitor list, which Quickshell
@@ -137,10 +216,11 @@ BarWidget {
     dimmed: !root.monitorFocused
     centerFigures: false
     fixedHeight: root.barSize
-    tooltipText: root.monitorFocused
+    activeColor: root.highlightColor
+    tooltipText: root.opened ? "" : (root.monitorFocused
       ? strings.t("badge.focused", "%1 has focus").arg(Model.plain(root.monitorName))
-      : strings.t("badge.unfocused", "%1 (Super+Tab or click to focus)").arg(Model.plain(root.monitorName))
-    onPressed: function() { root.focusMonitor() }
+      : strings.t("badge.unfocused", "%1 (Super+Tab to focus)").arg(Model.plain(root.monitorName)))
+    onPressed: function() { root.togglePanel() }
   }
 
   GridLayout {
@@ -168,6 +248,7 @@ BarWidget {
         // The workspace showing on this monitor is lit only while the monitor
         // has focus, so SUPER + 1..5 lands on the bar whose number is lit.
         active: shown && root.monitorFocused
+        activeColor: root.highlightColor
         opacity: shown || occupied ? 1 : 0.5
         horizontalMargin: 6
         verticalPadding: 6

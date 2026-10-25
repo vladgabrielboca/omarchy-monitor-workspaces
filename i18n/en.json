@@ -1,4 +1,17 @@
 {
   "badge.focused": "%1 has focus",
-  "badge.unfocused": "%1 (Super+Tab or click to focus)"
+  "badge.unfocused": "%1 (Super+Tab to focus)",
+  "highlight.title": "Highlight colour",
+  "highlight.hex": "Hex colour",
+  "highlight.reset": "Reset to theme default",
+  "highlight.accent": "Accent",
+  "highlight.accent.tip": "The theme's accent colour",
+  "highlight.alert": "Alert",
+  "highlight.alert.tip": "The colour the bar uses for alerts (recording, updates)",
+  "highlight.border": "Border",
+  "highlight.border.tip": "The focused window's border colour",
+  "highlight.plain": "Plain",
+  "highlight.plain.tip": "No colour: the unfocused bar is dimmed instead",
+  "highlight.custom": "Custom",
+  "highlight.custom.tip": "Your own colour from the picker or hex field"
 }

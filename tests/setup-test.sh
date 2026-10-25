@@ -39,9 +39,14 @@ grep -qF "\"$ROOT/hypr/monitor-workspaces.lua\"" "$hypr" || fail "hook does not 
 [[ $(jq -r '.centerEnd | map(.id + ":" + (.display // "")) | join(",")' <<<"$layout") == "$ID:Monitor badge,omarchy.weather:" ]] ||
   fail "badge not first in centerEnd: $layout"
 
+echo '{"hackerman":{"mode":"accent","hex":""}}' >"$XDG_STATE_HOME/$ID/highlight.json"
 if "$ROOT/teardown" </dev/null >/dev/null 2>&1; then fail "teardown ran without consent"; fi
 "$ROOT/teardown" --yes >/dev/null
 cmp -s "$hypr" "$sandbox/hypr.orig" || fail "teardown left the Hyprland config changed"
 jq -S . "$XDG_CONFIG_HOME/omarchy/shell.json" | cmp -s - "$sandbox/shell.orig" || fail "teardown left the bar layout changed"
+[[ $(ls -A "$XDG_STATE_HOME/$ID") == highlight.json ]] || fail "teardown should keep only the highlight colours"
+"$ROOT/setup" --yes >/dev/null && "$ROOT/teardown" --yes >/dev/null
+rm "$XDG_STATE_HOME/$ID/highlight.json"
+"$ROOT/setup" --yes >/dev/null && "$ROOT/teardown" --yes >/dev/null
 [[ ! -e $XDG_STATE_HOME/$ID ]] || fail "teardown left state behind"
 echo ok

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "vladgabrielboca.monitor-workspaces",
   "name": "Monitor Workspaces",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "Vlad Boca",
   "license": "MIT",
   "description": "Per-monitor workspaces for multi-monitor setups: each monitor gets its own 1-9, 0, a bar badge shows which monitor has focus, Super+Tab switches monitors and Super+Ctrl+Shift+number sends a window to the other monitor. Builds on Omarchy's built-in per-monitor workspaces when present.",

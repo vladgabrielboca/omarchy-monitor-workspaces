@@ -64,7 +64,12 @@ if [[ -f $SHELL_JSON ]]; then
   mv "$SHELL_JSON.tmp" "$SHELL_JSON"
 fi
 
-rm -rf "$STATE_DIR"
+# The highlight colours chosen per theme stay, so turning the plugin back on
+# brings them back; everything else in the state directory goes.
+if [[ -d $STATE_DIR ]]; then
+  find "$STATE_DIR" -mindepth 1 -maxdepth 1 ! -name highlight.json -exec rm -rf {} +
+  rmdir "$STATE_DIR" 2>/dev/null || true
+fi
 
 if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null; then
   hyprctl reload >/dev/null

@@ -64,9 +64,26 @@ Omarchy's own keys, which work the same way. Teardown restores Omarchy's
 `Super + Tab` and `Super + Shift + Tab`, and, on an Omarchy without the
 built-in, its global `Super + 1…0`.
 
-Clicking a workspace number switches to it; clicking the badge focuses that
-monitor. After login, focus returns to your primary monitor (Hyprland's
+Clicking a workspace number switches to it; clicking the badge opens the
+highlight colour menu (see below). After login, focus returns to your primary monitor (Hyprland's
 `cursor.default_monitor`, or the monitor that came up first).
+
+## Highlight colour
+
+The badge and the focused monitor's current workspace are lit with one colour,
+chosen **per theme**: click the badge to open the menu.
+
+- **Accent** (the default): the theme's accent colour.
+- **Alert**: the colour the bar uses for alerts (recording, updates). This
+  was the only colour before 2.1.0.
+- **Border**: the focused window's border colour.
+- **Plain**: no colour; the unfocused monitor's bar is dimmed instead.
+- **Custom**: drag in the picker or type a hex colour.
+
+Each theme remembers its own choice, so a colour picked for one theme never
+carries over to another; a theme you haven't set uses Accent. The choices are
+kept in `~/.local/state/vladgabrielboca.monitor-workspaces/highlight.json`,
+which `teardown` leaves in place.
 
 ## Install
 
@@ -165,7 +182,7 @@ cat "$XDG_RUNTIME_DIR/monitor-workspaces.log"
 ## Tests
 
 ```bash
-tests/model-test.sh   # block lookup, visible slots, labels (needs node)
+tests/model-test.sh   # block lookup, visible slots, labels, per-theme highlight colours (needs node)
 tests/lua-test.sh     # both engines' keys and rules against a stand-in Hyprland API (needs lua)
 tests/setup-test.sh   # setup/teardown round trip in a sandboxed config
 ```

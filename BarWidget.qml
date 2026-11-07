@@ -120,6 +120,21 @@ BarWidget {
     ? root.highlightChoice.hex
     : root.presetColor(root.highlightChoice.mode)
 
+  // Box: the lit number sits in a box filled with the highlight colour and is
+  // cut out in the bar's own background, so it reads by its fill rather than
+  // by a text colour a monochrome theme can barely tell apart. Chosen per
+  // theme in the menu, next to the colour.
+  readonly property bool boxStyle: root.highlightChoice.box === true
+  readonly property color barFill: {
+    var c = root.bar ? root.bar.background : Commons.Color.bar.background
+    return Qt.rgba(c.r, c.g, c.b, 1)
+  }
+
+  function setBox(box) {
+    root.highlights = Model.withBox(root.highlights, root.themeName, box)
+    if (!saveTimer.running) saveTimer.start()
+  }
+
   // `mode` null forgets this theme's choice. Writes while dragging the picker
   // go out at most every 80 ms, so the other bars follow along live.
   function setHighlight(mode, hex) {
@@ -242,19 +257,36 @@ BarWidget {
         readonly property bool occupied: workspace !== null && workspace.monitor === root.monitor
           && workspace.toplevels.values.length > 0
         readonly property bool shown: root.activeId === modelData
+        readonly property bool lit: shown && root.monitorFocused
 
+        id: slot
         bar: root.bar
         text: Model.slotLabel(root.first, modelData)
         // The workspace showing on this monitor is lit only while the monitor
         // has focus, so SUPER + 1..5 lands on the bar whose number is lit.
-        active: shown && root.monitorFocused
-        activeColor: root.highlightColor
+        active: lit
+        activeColor: root.boxStyle ? root.barFill : root.highlightColor
         opacity: shown || occupied ? 1 : 0.5
         horizontalMargin: 6
         verticalPadding: 6
         fixedWidth: root.vertical ? root.barSize : Style.space(20)
         fixedHeight: root.barSize
         onPressed: function() { root.focusWorkspace(modelData) }
+
+        // Box look: only the lit workspace gets a box.
+        Rectangle {
+          z: -1
+          anchors.centerIn: parent
+          height: Math.round(root.barSize * 0.72)
+          width: Math.min(parent.width, height)
+          radius: 0
+          visible: root.boxStyle && slot.lit
+          color: root.highlightColor
+
+          Behavior on color {
+            ColorAnimation { duration: Style.duration(160) }
+          }
+        }
       }
     }
   }

@@ -13,5 +13,10 @@
   "highlight.plain": "Plain",
   "highlight.plain.tip": "The colour the theme gives every bar icon",
   "highlight.custom": "Custom",
-  "highlight.custom.tip": "Your own colour from the picker or hex field"
+  "highlight.custom.tip": "Your own colour from the picker or hex field",
+  "highlight.look": "Lit as",
+  "highlight.number": "Number",
+  "highlight.number.tip": "The current workspace's number is drawn in the colour",
+  "highlight.box": "Box",
+  "highlight.box.tip": "The current workspace's number sits in a box filled with the colour"
 }

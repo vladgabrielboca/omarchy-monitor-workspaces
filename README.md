@@ -83,6 +83,11 @@ chosen **per theme**: click the badge to open the menu.
   in; the unfocused monitor's badge is still dimmed.
 - **Custom**: drag in the picker or type a hex colour.
 
+Below the colours, **Lit as** picks how the current workspace shows it:
+**Number** (the default) draws its number in the colour; **Box** puts the
+number in a box filled with the colour, cut out in the bar's background, which
+stays easy to spot on monochrome themes. Like the colour, this is per theme.
+
 Each theme remembers its own choice, so a colour picked for one theme never
 carries over to another; a theme you haven't set uses Accent. The choices are
 kept in `~/.local/state/vladgabrielboca.monitor-workspaces/highlight.json`,

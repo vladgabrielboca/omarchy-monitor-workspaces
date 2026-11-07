@@ -84,8 +84,9 @@ function plain(value) {
 }
 
 // ---- Highlight colour. Each theme keeps its own choice in a small JSON map,
-// { "<theme>": { mode, hex } }, so one theme's colour never carries over to
-// another. A preset mode is kept by name rather than by value, so it follows
+// { "<theme>": { mode, hex, box } }, so one theme's colour never carries over
+// to another. `box` puts the lit number in a box filled with the colour instead
+// of colouring the number itself. A preset mode is kept by name rather than by value, so it follows
 // the theme if the theme's palette changes; `hex` is the last custom colour,
 // kept even while a preset is chosen so Custom returns to it.
 
@@ -110,7 +111,7 @@ function parseHighlights(text) {
     if (!entry || typeof entry !== "object" || MODES.indexOf(entry.mode) === -1) continue
     var hex = normalizeHex(entry.hex)
     if (entry.mode === "custom" && hex === "") continue
-    map[theme] = { mode: entry.mode, hex: hex }
+    map[theme] = { mode: entry.mode, hex: hex, box: entry.box === true }
   }
   return map
 }
@@ -118,11 +119,12 @@ function parseHighlights(text) {
 // The choice for `theme`; a theme never set uses the accent.
 function highlightFor(map, theme) {
   var entry = map ? map[theme] : undefined
-  return entry ? { mode: entry.mode, hex: entry.hex } : { mode: DEFAULT_MODE, hex: "" }
+  return entry ? { mode: entry.mode, hex: entry.hex, box: entry.box === true } : { mode: DEFAULT_MODE, hex: "", box: false }
 }
 
 // A copy of `map` with `theme` set to `mode` (and `hex` for custom). Choosing
-// a preset keeps the theme's last custom colour; `mode` null forgets the theme.
+// a preset keeps the theme's last custom colour and its box choice; `mode`
+// null forgets the theme.
 function withHighlight(map, theme, mode, hex) {
   var next = {}
   for (var key in map) next[key] = map[key]
@@ -133,7 +135,16 @@ function withHighlight(map, theme, mode, hex) {
   var previous = highlightFor(map, theme)
   var kept = mode === "custom" ? normalizeHex(hex) : previous.hex
   if (mode === "custom" && kept === "") return next
-  next[theme] = { mode: mode, hex: kept }
+  next[theme] = { mode: mode, hex: kept, box: previous.box }
+  return next
+}
+
+// A copy of `map` with `theme` lit as a box (true) or a coloured number.
+function withBox(map, theme, box) {
+  var next = {}
+  for (var key in map) next[key] = map[key]
+  var previous = highlightFor(map, theme)
+  next[theme] = { mode: previous.mode, hex: previous.hex, box: box === true }
   return next
 }
 

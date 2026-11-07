@@ -348,6 +348,91 @@ Panel {
           }
         }
 
+        // How the current workspace is lit: its number in the colour (the
+        // original look), or a box filled with the colour.
+        Row {
+          id: lookRow
+          width: parent.width
+          spacing: Style.space(4)
+
+          Text {
+            id: lookLabel
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(implicitWidth + Style.space(6), (lookRow.width - lookRow.spacing * (root.options.length - 1)) / root.options.length)
+            text: strings.t("highlight.look", "Lit as")
+            color: root.foreground
+            opacity: 0.75
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Repeater {
+            model: [
+              { box: false, label: strings.t("highlight.number", "Number"), tip: strings.t("highlight.number.tip", "The current workspace's number is drawn in the colour") },
+              { box: true, label: strings.t("highlight.box", "Box"), tip: strings.t("highlight.box.tip", "The current workspace's number sits in a box filled with the colour") }
+            ]
+
+            Rectangle {
+              id: look
+              required property var modelData
+              readonly property bool selected: root.choice.box === modelData.box
+              readonly property bool hot: lookMouse.containsMouse
+
+              width: (lookRow.width - lookLabel.width - lookRow.spacing * 2) / 2
+              height: lookText.implicitHeight + Style.space(18)
+              radius: 0
+              color: selected ? Util.alpha(root.foreground, 0.12) : (hot ? Util.alpha(root.foreground, 0.06) : "transparent")
+              border.width: Style.space(1)
+              border.color: Util.alpha(root.foreground, selected ? 0.9 : (hot ? 0.45 : 0.2))
+
+              // A small preview of the look, beside its name.
+              Row {
+                anchors.centerIn: parent
+                spacing: Style.space(6)
+
+                Rectangle {
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: lookText.implicitHeight
+                  height: lookText.implicitHeight
+                  radius: 0
+                  color: look.modelData.box ? root.shownColor : "transparent"
+
+                  Text {
+                    anchors.centerIn: parent
+                    text: "1"
+                    color: look.modelData.box ? (root.hostWidget ? root.hostWidget.barFill : "#000000") : root.shownColor
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+                }
+
+                Text {
+                  id: lookText
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: look.modelData.label
+                  color: root.foreground
+                  opacity: look.selected || look.hot ? 1 : 0.75
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                }
+              }
+
+              MouseArea {
+                id: lookMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: if (root.hostWidget) root.hostWidget.setBox(look.modelData.box)
+              }
+
+              PanelToolTip {
+                visible: lookMouse.containsMouse
+                text: look.modelData.tip
+              }
+            }
+          }
+        }
+
         Text {
           anchors.right: parent.right
           visible: root.themeSet

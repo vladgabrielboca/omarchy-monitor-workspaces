@@ -349,7 +349,8 @@ Panel {
         }
 
         // How the current workspace is lit: its number in the colour (the
-        // original look), or a box filled with the colour.
+        // original look), a box filled with the colour, or its layout glyph in
+        // place of the number, as Omarchy's own bar shows it.
         Row {
           id: lookRow
           width: parent.width
@@ -368,17 +369,18 @@ Panel {
 
           Repeater {
             model: [
-              { box: false, label: strings.t("highlight.number", "Number"), tip: strings.t("highlight.number.tip", "The current workspace's number is drawn in the colour") },
-              { box: true, label: strings.t("highlight.box", "Box"), tip: strings.t("highlight.box.tip", "The current workspace's number sits in a box filled with the colour") }
+              { look: "number", box: false, label: strings.t("highlight.number", "Number"), tip: strings.t("highlight.number.tip", "The current workspace's number is drawn in the colour") },
+              { look: "box", box: true, label: strings.t("highlight.box", "Box"), tip: strings.t("highlight.box.tip", "The current workspace's number sits in a box filled with the colour") },
+              { look: "layout", box: false, label: strings.t("highlight.layout", "Layout"), tip: strings.t("highlight.layout.tip", "The current workspace shows its layout (tiling, scrolling, floating) instead of its number, as Omarchy's own bar does; click it to change the layout") }
             ]
 
             Rectangle {
               id: look
               required property var modelData
-              readonly property bool selected: root.choice.box === modelData.box
+              readonly property bool selected: root.choice.look === modelData.look
               readonly property bool hot: lookMouse.containsMouse
 
-              width: (lookRow.width - lookLabel.width - lookRow.spacing * 2) / 2
+              width: (lookRow.width - lookLabel.width - lookRow.spacing * 3) / 3
               height: lookText.implicitHeight + Style.space(18)
               radius: 0
               color: selected ? Util.alpha(root.foreground, 0.12) : (hot ? Util.alpha(root.foreground, 0.06) : "transparent")
@@ -399,7 +401,7 @@ Panel {
 
                   Text {
                     anchors.centerIn: parent
-                    text: "1"
+                    text: look.modelData.look === "layout" ? "󱓻" : "1"
                     color: look.modelData.box ? (root.hostWidget ? root.hostWidget.barFill : "#000000") : root.shownColor
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
@@ -422,7 +424,7 @@ Panel {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: if (root.hostWidget) root.hostWidget.setBox(look.modelData.box)
+                onClicked: if (root.hostWidget) root.hostWidget.setLook(look.modelData.look)
               }
 
               PanelToolTip {

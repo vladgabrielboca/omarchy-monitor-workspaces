@@ -7,7 +7,7 @@ command -v node >/dev/null || { echo "SKIP: node not installed"; exit 0; }
 node - "$ROOT/Model.js" <<'JS'
 const fs = require("fs")
 const src = fs.readFileSync(process.argv[2], "utf8").replace(".pragma library", "")
-const M = new Function(src + "; return { firstWorkspace, visibleIds, slotLabel, plain, parseBlocks, builtinFirst, normalizeHex, parseHighlights, highlightFor, withHighlight, withBox, themeTitle, hexToHsv, hsvToHex }")()
+const M = new Function(src + "; return { firstWorkspace, visibleIds, slotLabel, plain, parseBlocks, builtinFirst, normalizeHex, parseHighlights, highlightFor, withHighlight, withLook, layoutGlyph, themeTitle, hexToHsv, hsvToHex }")()
 const assert = require("assert")
 const monitors = [
   { name: "DP-1", x: 1920, y: -140 },
@@ -41,24 +41,31 @@ assert.strictEqual(M.normalizeHex("#ABC"), "#aabbcc")
 assert.strictEqual(M.normalizeHex(" c38b7b "), "#c38b7b")
 assert.strictEqual(M.normalizeHex("#12345"), "")
 assert.strictEqual(M.normalizeHex("red"), "")
-const saved = M.parseHighlights('{"hackerman":{"mode":"custom","hex":"#ff8800","box":true},"catppuccin":{"mode":"accent","hex":""},"bad":{"mode":"neon"},"nohex":{"mode":"custom"},"list":[]}')
-assert.deepStrictEqual(saved, { hackerman: { mode: "custom", hex: "#ff8800", box: true }, catppuccin: { mode: "accent", hex: "", box: false } })
+// 2.2.0's `box: true` reads as the box look; an unknown look is the number.
+const saved = M.parseHighlights('{"hackerman":{"mode":"custom","hex":"#ff8800","box":true},"catppuccin":{"mode":"accent","hex":""},"ethereal":{"mode":"plain","hex":"","look":"layout"},"odd":{"mode":"plain","hex":"","look":"neon"},"bad":{"mode":"neon"},"nohex":{"mode":"custom"},"list":[]}')
+assert.deepStrictEqual(saved, { hackerman: { mode: "custom", hex: "#ff8800", look: "box" }, catppuccin: { mode: "accent", hex: "", look: "number" }, ethereal: { mode: "plain", hex: "", look: "layout" }, odd: { mode: "plain", hex: "", look: "number" } })
 assert.deepStrictEqual(M.parseHighlights("not json"), {})
 assert.deepStrictEqual(M.parseHighlights("[1]"), {})
-assert.deepStrictEqual(M.highlightFor(saved, "last-horizon"), { mode: "accent", hex: "", box: false })
-// A preset keeps the theme's custom colour and box; other themes are untouched.
+assert.deepStrictEqual(M.highlightFor(saved, "last-horizon"), { mode: "accent", hex: "", look: "number" })
+// A preset keeps the theme's custom colour and look; other themes are untouched.
 let next = M.withHighlight(saved, "hackerman", "alert")
-assert.deepStrictEqual(next.hackerman, { mode: "alert", hex: "#ff8800", box: true })
-assert.deepStrictEqual(saved.hackerman, { mode: "custom", hex: "#ff8800", box: true })
+assert.deepStrictEqual(next.hackerman, { mode: "alert", hex: "#ff8800", look: "box" })
+assert.deepStrictEqual(saved.hackerman, { mode: "custom", hex: "#ff8800", look: "box" })
 next = M.withHighlight(next, "last-horizon", "custom", "C38B7B")
-assert.deepStrictEqual(next["last-horizon"], { mode: "custom", hex: "#c38b7b", box: false })
-assert.deepStrictEqual(next.catppuccin, { mode: "accent", hex: "", box: false })
+assert.deepStrictEqual(next["last-horizon"], { mode: "custom", hex: "#c38b7b", look: "number" })
+assert.deepStrictEqual(next.catppuccin, { mode: "accent", hex: "", look: "number" })
 assert.deepStrictEqual(M.withHighlight(next, "x", "custom", "nope"), next)
 assert.strictEqual(M.withHighlight(next, "hackerman", null).hackerman, undefined)
-// Box on a theme never set keeps the default colour; off again keeps the colour.
-assert.deepStrictEqual(M.withBox(next, "nord", true).nord, { mode: "accent", hex: "", box: true })
-assert.deepStrictEqual(M.withBox(next, "hackerman", false).hackerman, { mode: "alert", hex: "#ff8800", box: false })
-assert.strictEqual(next.hackerman.box, true)
+// A look on a theme never set keeps the default colour; changing it keeps the colour.
+assert.deepStrictEqual(M.withLook(next, "nord", "layout").nord, { mode: "accent", hex: "", look: "layout" })
+assert.deepStrictEqual(M.withLook(next, "hackerman", "number").hackerman, { mode: "alert", hex: "#ff8800", look: "number" })
+assert.deepStrictEqual(M.withLook(next, "hackerman", "neon").hackerman.look, "number")
+assert.strictEqual(next.hackerman.look, "box")
+// The same glyphs as Omarchy's bar: square tiles, circle scrolls, triangle floats.
+assert.strictEqual(M.layoutGlyph("dwindle"), "\u{f14fb}")
+assert.strictEqual(M.layoutGlyph("scrolling"), "\u{f0765}")
+assert.strictEqual(M.layoutGlyph("floating"), "\u{f0536}")
+assert.strictEqual(M.layoutGlyph("master"), "\u{f14fb}")
 assert.strictEqual(M.themeTitle("catppuccin-latte"), "Catppuccin Latte")
 for (const hex of ["#000000", "#ffffff", "#c38b7b", "#89b4fa", "#50f872", "#ff0000", "#00ff7f"])
   assert.strictEqual(M.hsvToHex(...Object.values(M.hexToHsv(hex))), hex)

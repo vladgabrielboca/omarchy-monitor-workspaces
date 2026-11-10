@@ -86,7 +86,11 @@ chosen **per theme**: click the badge to open the menu.
 Below the colours, **Lit as** picks how the current workspace shows it:
 **Number** (the default) draws its number in the colour; **Box** puts the
 number in a box filled with the colour, cut out in the bar's background, which
-stays easy to spot on monochrome themes. Like the colour, this is per theme.
+stays easy to spot on monochrome themes; **Layout** does what Omarchy's own bar
+does: the workspace each monitor shows swaps its number for its layout glyph
+(a square tiles, a circle scrolls, a triangle floats), lit in the colour on the
+focused monitor. Clicking the glyph cycles the layout, like Super + L. Like the
+colour, this is per theme.
 
 Each theme remembers its own choice, so a colour picked for one theme never
 carries over to another; a theme you haven't set uses Accent. The choices are

@@ -18,5 +18,7 @@
   "highlight.number": "Number",
   "highlight.number.tip": "The current workspace's number is drawn in the colour",
   "highlight.box": "Box",
-  "highlight.box.tip": "The current workspace's number sits in a box filled with the colour"
+  "highlight.box.tip": "The current workspace's number sits in a box filled with the colour",
+  "highlight.layout": "Layout",
+  "highlight.layout.tip": "The current workspace shows its layout (tiling, scrolling, floating) instead of its number, as Omarchy's own bar does; click it to change the layout"
 }

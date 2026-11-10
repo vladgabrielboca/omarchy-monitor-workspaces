@@ -120,18 +120,24 @@ BarWidget {
     ? root.highlightChoice.hex
     : root.presetColor(root.highlightChoice.mode)
 
-  // Box: the lit number sits in a box filled with the highlight colour and is
-  // cut out in the bar's own background, so it reads by its fill rather than
-  // by a text colour a monochrome theme can barely tell apart. Chosen per
-  // theme in the menu, next to the colour.
-  readonly property bool boxStyle: root.highlightChoice.box === true
+  // Lit as, chosen per theme in the menu next to the colour:
+  //   number - the lit number is drawn in the highlight colour
+  //   box    - the lit number sits in a box filled with the highlight colour,
+  //            cut out in the bar's own background, so it reads by its fill
+  //            rather than by a text colour a monochrome theme can barely tell
+  //            apart
+  //   layout - as Omarchy's own bar: the workspace each monitor shows swaps its
+  //            number for its layout glyph, lit on the focused monitor
+  readonly property string look: root.highlightChoice.look
+  readonly property bool boxStyle: root.look === "box"
+  readonly property bool layoutStyle: root.look === "layout" && !root.badgeMode
   readonly property color barFill: {
     var c = root.bar ? root.bar.background : Commons.Color.bar.background
     return Qt.rgba(c.r, c.g, c.b, 1)
   }
 
-  function setBox(box) {
-    root.highlights = Model.withBox(root.highlights, root.themeName, box)
+  function setLook(look) {
+    root.highlights = Model.withLook(root.highlights, root.themeName, look)
     if (!saveTimer.running) saveTimer.start()
   }
 
@@ -167,6 +173,87 @@ BarWidget {
     // A write of ours still waiting to go out is newer than what's on disk.
     onLoaded: if (!saveTimer.running) root.highlights = Model.parseHighlights(text())
     onLoadFailed: if (!saveTimer.running) root.highlights = ({})
+  }
+
+  // ---- Layout look: the layout of the workspace this monitor shows, read with
+  // Omarchy's own script. A layout only changes through Omarchy's layout
+  // commands, which ask the bar to refresh, or a config reload, so each
+  // workspace's layout is read once and cached.
+  property string activeMode: "dwindle"
+  property var modeCache: ({})
+  property int modeGeneration: 0
+  property int modeProcWorkspace: -1
+  property int modeProcGeneration: 0
+  property bool modeStale: false
+
+  function showActiveMode() {
+    if (!root.layoutStyle) return
+    var mode = root.modeCache[root.activeId]
+    if (mode !== undefined) root.activeMode = mode
+    else root.readMode()
+  }
+
+  function readMode() {
+    if (modeProc.running) {
+      root.modeStale = true
+      return
+    }
+    if (root.activeId <= 0) return
+    root.modeProcWorkspace = root.activeId
+    root.modeProcGeneration = root.modeGeneration
+    modeProc.command = ["omarchy-hyprland-workspace-layout-current", String(root.activeId)]
+    modeProc.running = true
+  }
+
+  // Called on every instance (see the IPC handler below); badges ignore it.
+  function refreshLayout() {
+    root.modeCache = ({})
+    root.modeGeneration++
+    root.showActiveMode()
+  }
+
+  // The layout commands act on the focused workspace, so a click on another
+  // monitor's bar focuses that monitor first, as Omarchy's bar does.
+  function cycleLayout() {
+    if (!root.bar) return
+    var command = "omarchy-hyprland-workspace-layout-toggle"
+    if (!root.monitorFocused) {
+      command = "hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ monitor = \"" + Model.plain(root.monitorName) + "\" })") + " >/dev/null && " + command
+    }
+    root.bar.run(command)
+  }
+
+  onActiveIdChanged: root.showActiveMode()
+  onLayoutStyleChanged: root.showActiveMode()
+
+  Process {
+    id: modeProc
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var mode = text.trim()
+        // A read that started before a refresh may predate the change.
+        if (!mode || root.modeProcGeneration !== root.modeGeneration) return
+        root.modeCache[root.modeProcWorkspace] = mode
+        if (root.modeProcWorkspace === root.activeId) root.activeMode = mode
+      }
+    }
+    onExited: {
+      if (!root.modeStale) return
+      root.modeStale = false
+      // Deferred: the process still reports running while it signals exit.
+      Qt.callLater(root.showActiveMode)
+    }
+  }
+
+  // Super + L and a new default layout tell the bar through the
+  // omarchy.workspaces target, which Omarchy's own workspaces widget owns when
+  // it is on the bar. This one stands in for it while it isn't: only the first
+  // handler for a target answers, and it passes the call to every instance.
+  ShellIpc {
+    target: "omarchy.workspaces"
+    enabled: !root.badgeMode
+
+    function refresh(): void { root.broadcast("refreshLayout") }
   }
 
   // ---- The menu. Shape contract for the bar's popout routing: open, close
@@ -207,6 +294,7 @@ BarWidget {
     target: Hyprland
     function onRawEvent(event) {
       var name = event ? String(event.name) : ""
+      if (name === "configreloaded") root.refreshLayout()
       if (name === "configreloaded" || name === "monitoraddedv2" || name === "monitorremovedv2") {
         Hyprland.refreshMonitors()
       } else if (name === "moveworkspacev2" || name === "changeworkspaceid") {
@@ -261,7 +349,7 @@ BarWidget {
 
         id: slot
         bar: root.bar
-        text: Model.slotLabel(root.first, modelData)
+        text: shown && root.layoutStyle ? Model.layoutGlyph(root.activeMode) : Model.slotLabel(root.first, modelData)
         // The workspace showing on this monitor is lit only while the monitor
         // has focus, so SUPER + 1..5 lands on the bar whose number is lit.
         active: lit
@@ -271,7 +359,12 @@ BarWidget {
         verticalPadding: 6
         fixedWidth: root.vertical ? root.barSize : Style.space(20)
         fixedHeight: root.barSize
-        onPressed: function() { root.focusWorkspace(modelData) }
+        // With the layout look, clicking the glyph cycles the layout, as on
+        // Omarchy's own bar.
+        onPressed: function() {
+          if (shown && root.layoutStyle) root.cycleLayout()
+          else root.focusWorkspace(modelData)
+        }
 
         // Box look: only the lit workspace gets a box.
         Rectangle {

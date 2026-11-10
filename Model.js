@@ -84,14 +84,24 @@ function plain(value) {
 }
 
 // ---- Highlight colour. Each theme keeps its own choice in a small JSON map,
-// { "<theme>": { mode, hex, box } }, so one theme's colour never carries over
-// to another. `box` puts the lit number in a box filled with the colour instead
-// of colouring the number itself. A preset mode is kept by name rather than by value, so it follows
+// { "<theme>": { mode, hex, look } }, so one theme's colour never carries over
+// to another. `look` is how the lit workspace shows the colour: "number" colours
+// its number, "box" puts the number in a box filled with the colour, "layout"
+// swaps the number for the workspace's layout glyph, as Omarchy's own bar does.
+// Files from 2.2.0 said `box: true` for the box look. A preset mode is kept by name rather than by value, so it follows
 // the theme if the theme's palette changes; `hex` is the last custom colour,
 // kept even while a preset is chosen so Custom returns to it.
 
 var MODES = ["accent", "alert", "border", "plain", "custom"]
 var DEFAULT_MODE = "accent"
+var LOOKS = ["number", "box", "layout"]
+
+// A saved entry's look, reading 2.2.0's `box: true` as the box look.
+function lookOf(entry) {
+  if (!entry) return "number"
+  if (LOOKS.indexOf(entry.look) !== -1) return entry.look
+  return entry.box === true ? "box" : "number"
+}
 
 // "#abc", "abc", "#aabbcc" or "aabbcc", any case, to "#aabbcc"; "" otherwise.
 function normalizeHex(value) {
@@ -111,7 +121,7 @@ function parseHighlights(text) {
     if (!entry || typeof entry !== "object" || MODES.indexOf(entry.mode) === -1) continue
     var hex = normalizeHex(entry.hex)
     if (entry.mode === "custom" && hex === "") continue
-    map[theme] = { mode: entry.mode, hex: hex, box: entry.box === true }
+    map[theme] = { mode: entry.mode, hex: hex, look: lookOf(entry) }
   }
   return map
 }
@@ -119,11 +129,11 @@ function parseHighlights(text) {
 // The choice for `theme`; a theme never set uses the accent.
 function highlightFor(map, theme) {
   var entry = map ? map[theme] : undefined
-  return entry ? { mode: entry.mode, hex: entry.hex, box: entry.box === true } : { mode: DEFAULT_MODE, hex: "", box: false }
+  return entry ? { mode: entry.mode, hex: entry.hex, look: lookOf(entry) } : { mode: DEFAULT_MODE, hex: "", look: "number" }
 }
 
 // A copy of `map` with `theme` set to `mode` (and `hex` for custom). Choosing
-// a preset keeps the theme's last custom colour and its box choice; `mode`
+// a preset keeps the theme's last custom colour and its look; `mode`
 // null forgets the theme.
 function withHighlight(map, theme, mode, hex) {
   var next = {}
@@ -135,20 +145,28 @@ function withHighlight(map, theme, mode, hex) {
   var previous = highlightFor(map, theme)
   var kept = mode === "custom" ? normalizeHex(hex) : previous.hex
   if (mode === "custom" && kept === "") return next
-  next[theme] = { mode: mode, hex: kept, box: previous.box }
+  next[theme] = { mode: mode, hex: kept, look: previous.look }
   return next
 }
 
-// A copy of `map` with `theme` lit as a box (true) or a coloured number.
-function withBox(map, theme, box) {
+// A copy of `map` with `theme` lit with `look`; an unknown look is "number".
+function withLook(map, theme, look) {
   var next = {}
   for (var key in map) next[key] = map[key]
   var previous = highlightFor(map, theme)
-  next[theme] = { mode: previous.mode, hex: previous.hex, box: box === true }
+  next[theme] = { mode: previous.mode, hex: previous.hex, look: LOOKS.indexOf(look) !== -1 ? look : "number" }
   return next
 }
 
 // "catppuccin-latte" -> "Catppuccin Latte"
+// The glyph Omarchy's bar shows for a workspace layout: a square tiles, a
+// circle scrolls, a triangle floats.
+function layoutGlyph(mode) {
+  if (mode === "scrolling") return "󰝥"
+  if (mode === "floating") return "󰔶"
+  return "󱓻"
+}
+
 function themeTitle(name) {
   return plain(name).split(/[-_\s]+/).filter(function(w) { return w !== "" }).map(function(w) {
     return w.charAt(0).toUpperCase() + w.slice(1)
